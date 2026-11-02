@@ -36,6 +36,7 @@ function createApi() {
     addThread: vi.fn().mockResolvedValue({ id: 77 }),
     updateConversation: vi.fn().mockResolvedValue(undefined),
     createDraftReply: vi.fn().mockResolvedValue({ id: 88 }),
+    createConversation: vi.fn().mockResolvedValue({ id: 900, number: 3063999 }),
     searchConversations: vi.fn().mockResolvedValue({
       _embedded: { conversations: [conversation] },
       page: { size: 50, totalElements: 1, number: 1, totalPages: 1 },
@@ -63,6 +64,31 @@ async function execute(
 }
 
 describe('buildServer', () => {
+  it('creates phone tickets with an internal note and never exposes email options', async () => {
+    const api = createApi();
+    const tools = registeredTools(buildServer({ api: api as never, defaultUserId: 7 }));
+
+    const result = await execute(tools, 'freescout_create_ticket', {
+      mailboxId: 1,
+      subject: 'Network drives dropping',
+      text: 'Billing note',
+      customerPhone: '3146408700',
+      customerFirstName: 'Chris',
+      status: 'active',
+      assignTo: 1,
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      success: true,
+      ticketId: 900,
+      ticketNumber: 3063999,
+    });
+    const call = api.createConversation.mock.calls[0][0];
+    expect(call).toMatchObject({ mailboxId: 1, userId: 7, assignTo: 1 });
+    expect(call).not.toHaveProperty('type');
+    expect(call).not.toHaveProperty('firstThreadType');
+  });
+
   it('validates required configuration before opening the stdio entry', async () => {
     const [, serverTransport] = InMemoryTransport.createLinkedPair();
     vi.stubEnv('FREESCOUT_URL', 'https://example.invalid');
@@ -75,11 +101,11 @@ describe('buildServer', () => {
     vi.unstubAllEnvs();
   });
 
-  it('registers the eight tools without declared output schemas', () => {
+  it('registers the nine tools without declared output schemas', () => {
     const server = buildServer({ api: createApi() as never });
     const tools = registeredTools(server);
 
-    expect(Object.keys(tools)).toHaveLength(8);
+    expect(Object.keys(tools)).toHaveLength(9);
     expect(Object.values(tools).every((tool) => tool.outputSchema === undefined)).toBe(true);
   });
 

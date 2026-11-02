@@ -129,6 +129,67 @@ describe('FreeScoutAPI', () => {
     }, 15000);
   });
 
+  describe('createConversation', () => {
+    it('always creates a phone ticket with an internal note', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ id: 70000, number: 3063400, subject: 'Test', status: 'active' }),
+      });
+
+      const created = await api.createConversation({
+        mailboxId: 1,
+        subject: 'Test',
+        customer: { email: 'chris@example.com', firstName: 'Chris' },
+        text: 'Billing note',
+        userId: 1,
+        status: 'active',
+        assignTo: 1,
+        customFields: [{ id: 2, value: '1' }],
+      });
+
+      expect(created.number).toBe(3063400);
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).toBe(`${mockBaseUrl}/api/conversations`);
+      expect(init.method).toBe('POST');
+      const body = JSON.parse(init.body);
+      expect(body).toMatchObject({
+        type: 'phone',
+        mailboxId: 1,
+        subject: 'Test',
+        customer: { email: 'chris@example.com', firstName: 'Chris' },
+        status: 'active',
+        assignTo: 1,
+        user: 1,
+        customFields: [{ id: 2, value: '1' }],
+      });
+      expect(body.threads).toEqual([{ type: 'note', text: expect.any(String), user: 1 }]);
+    });
+
+    it('omits optional fields when not provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ id: 1, number: 2, subject: 'S', status: 'active' }),
+      });
+
+      await api.createConversation({
+        mailboxId: 1,
+        subject: 'S',
+        customer: { phone: '3145550100' },
+        text: 'Hi',
+        userId: 1,
+        status: 'active',
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.type).toBe('phone');
+      expect(body.customer).toEqual({ phone: '3145550100' });
+      expect(body).not.toHaveProperty('assignTo');
+      expect(body).not.toHaveProperty('customFields');
+    });
+  });
+
   describe('searchConversations', () => {
     const mockSearchResponse = {
       _embedded: {

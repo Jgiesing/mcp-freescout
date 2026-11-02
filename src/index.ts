@@ -19,6 +19,7 @@ const packageJson = require('../package.json') as PackageJson;
 type FreeScoutApiPort = Pick<
   FreeScoutAPI,
   | 'addThread'
+  | 'createConversation'
   | 'createDraftReply'
   | 'getConversation'
   | 'getMailboxes'
@@ -155,6 +156,76 @@ export function buildServer(options: BuildServerOptions = {}): McpServer {
         success: true,
         message: `Note added to ticket #${ticketId}`,
         ticketId,
+      };
+
+      return {
+        content: [{ type: 'text', text: output.message }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  server.registerTool(
+    'freescout_create_ticket',
+    {
+      title: 'Create Ticket',
+      description:
+        'Create a new FreeScout PHONE ticket. The first thread is always an internal note, ' +
+        'so the customer is never emailed. Provide customerEmail or customerPhone (or both).',
+      inputSchema: z
+        .object({
+          mailboxId: z.number().describe('Mailbox ID (see freescout_get_mailboxes)'),
+          subject: z.string().min(1).describe('Ticket subject'),
+          text: z
+            .string()
+            .min(1)
+            .describe('Internal note added as the first thread (never emailed)'),
+          customerEmail: z.string().email().optional().describe('Customer email'),
+          customerPhone: z.string().optional().describe('Customer phone'),
+          customerFirstName: z.string().optional().describe('Customer first name'),
+          customerLastName: z.string().optional().describe('Customer last name'),
+          status: z
+            .enum(['active', 'pending', 'closed'])
+            .default('active')
+            .describe('Initial status (default: active)'),
+          assignTo: z.number().optional().describe('User ID to assign the ticket to'),
+          userId: z
+            .number()
+            .optional()
+            .describe(
+              'User ID creating the ticket and authoring the first thread (default: from env)'
+            ),
+          customFields: z
+            .array(z.object({ id: z.number(), value: z.string() }))
+            .optional()
+            .describe('Custom field values (requires the FreeScout Custom Fields module)'),
+        })
+        .refine((v) => Boolean(v.customerEmail || v.customerPhone), {
+          message: 'Provide customerEmail or customerPhone',
+        }),
+    },
+    async (args) => {
+      const created = await api.createConversation({
+        mailboxId: args.mailboxId,
+        subject: args.subject,
+        customer: {
+          email: args.customerEmail,
+          phone: args.customerPhone,
+          firstName: args.customerFirstName,
+          lastName: args.customerLastName,
+        },
+        text: args.text,
+        userId: args.userId ?? defaultUserId,
+        status: args.status,
+        assignTo: args.assignTo,
+        customFields: args.customFields,
+      });
+
+      const output = {
+        success: true,
+        message: `Ticket #${created?.number ?? '?'} created (id ${created?.id ?? '?'})`,
+        ticketId: created?.id,
+        ticketNumber: created?.number,
       };
 
       return {

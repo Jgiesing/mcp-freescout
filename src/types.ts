@@ -98,18 +98,12 @@ export const SearchFiltersSchema = z.object({
     .string()
     .optional()
     .describe('Alias for `subject`: matches the conversation subject only, not message bodies.'),
-  subject: z
-    .string()
-    .optional()
-    .describe('Filter by conversation subject (partial match).'),
+  subject: z.string().optional().describe('Filter by conversation subject (partial match).'),
   customerEmail: z
     .string()
     .optional()
     .describe('Filter by the customer email address on the conversation.'),
-  number: z
-    .number()
-    .optional()
-    .describe('Look up a single conversation by its ticket number.'),
+  number: z.number().optional().describe('Look up a single conversation by its ticket number.'),
   assignee: z.union([z.literal('unassigned'), z.literal('any'), z.number()]).optional(),
   updatedSince: z.string().optional(), // ISO date or relative like "7d", "24h"
   createdSince: z.string().optional(),
@@ -141,4 +135,15 @@ export interface FreeScoutPage {
   totalElements: number;
   totalPages: number;
   number: number;
+}
+
+export interface CreateConversationInput {
+  mailboxId: number;
+  subject: string;
+  customer: { email?: string; phone?: string; firstName?: string; lastName?: string };
+  text: string;
+  userId: number;
+  status: 'active' | 'pending' | 'closed';
+  assignTo?: number;
+  customFields?: Array<{ id: number; value: string }>;
 }

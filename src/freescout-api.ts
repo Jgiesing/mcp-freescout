@@ -1,4 +1,5 @@
 import type {
+  CreateConversationInput,
   FreeScoutConversation,
   FreeScoutApiResponse,
   FreeScoutRecipients,
@@ -401,6 +402,42 @@ export class FreeScoutAPI {
     recipients?: FreeScoutRecipients
   ): Promise<FreeScoutThread> {
     return this.addThread(ticketId, 'message', text, userId, 'draft', recipients);
+  }
+
+  /**
+   * Create a new PHONE ticket. Always type "phone" with an internal note as the
+   * first thread, so FreeScout never emails the customer. Deliberately has no
+   * option for email conversations or customer-facing replies.
+   */
+  async createConversation(input: CreateConversationInput): Promise<FreeScoutConversation> {
+    const customer: { email?: string; phone?: string; firstName?: string; lastName?: string } = {};
+    if (input.customer.email) customer.email = input.customer.email;
+    if (input.customer.phone) customer.phone = input.customer.phone;
+    if (input.customer.firstName) customer.firstName = input.customer.firstName;
+    if (input.customer.lastName) customer.lastName = input.customer.lastName;
+
+    const body: Record<string, unknown> = {
+      type: 'phone',
+      mailboxId: input.mailboxId,
+      subject: input.subject,
+      customer,
+      threads: [
+        {
+          type: 'note',
+          text: this.formatForFreeScoutEditor(input.text),
+          user: input.userId,
+        },
+      ],
+      status: input.status,
+      user: input.userId,
+    };
+
+    if (input.assignTo !== undefined) body.assignTo = input.assignTo;
+    if (input.customFields && input.customFields.length > 0) {
+      body.customFields = input.customFields;
+    }
+
+    return this.request<FreeScoutConversation>('/conversations', 'POST', body);
   }
 
   async updateConversation(

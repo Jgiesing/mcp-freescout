@@ -200,6 +200,22 @@ Analyze a ticket to determine issue type, root cause, and suggested solutions.
 
 ![Ticket analysis showing issue type, root cause, and implementation recommendations](https://github.com/user-attachments/assets/19080021-1f29-45a4-8601-556b55d379c3)
 
+#### `freescout_create_ticket`
+
+Create a new **phone** ticket. The first thread is always an internal note, so the customer is never emailed. There is intentionally no option to create an email conversation or a customer-facing reply.
+
+**Parameters:**
+
+- `mailboxId` (required): Mailbox ID (see `freescout_get_mailboxes`)
+- `subject` (required): Ticket subject
+- `text` (required): Internal note added as the first thread
+- `customerEmail` / `customerPhone`: At least one is required
+- `customerFirstName`, `customerLastName` (optional)
+- `status` (optional): `active` (default), `pending`, or `closed`
+- `assignTo` (optional): User ID to assign the ticket to
+- `userId` (optional): User creating the ticket (defaults to env setting)
+- `customFields` (optional): `[{ id, value }]` (requires the Custom Fields module)
+
 #### `freescout_add_note`
 
 Add an internal note to a ticket for team communication.
